@@ -38,18 +38,18 @@ class tt_sql():
         finally:
             c.close()
 
-    def insert_rows(self, data):
+    def insert_rows(self, l_filter):
         c = self.conn.cursor()
-        if data['sniff_filter'] == 'icmp-echo':
+        if self.filter['sniff_filter'] == 'icmp-echo':
             sql = """INSERT INTO tt_log(
                     datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read
                     ) VALUES(?,?,?,?,?,?,?,?)"""
-            c.execute(sql, (data['sniff_filter'],
-                            data['ether_src'],
-                            data['ip_src'],
-                            data['ip_dst'],
-                            data['tcp_src'],
-                            data['tdp_dst'],
+            c.execute(sql, (l_filter['sniff_filter'],
+                            l_filter['ether_src'],
+                            l_filter['ip_src'],
+                            l_filter['ip_dst'],
+                            l_filter['tcp_src'],
+                            l_filter['tdp_dst'],
                             'FALSE'))
         self.conn.commit()
         c.close()
