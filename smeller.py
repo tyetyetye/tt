@@ -3,30 +3,38 @@
 from scapy.all import *
 from functools import partial
 import sqlite3
-from modules.sql import tt_sql
+from modules.tt_sql import tt_sql
+import datetime
 
 sql_file = 'db/tt.db'
 
 def tt_logger(l_filter, pkt):
     # Create dictionary to send to SQL
-    pkt_dict = {'sniff_filter': l_filter}
-    pkt_dict['ether_src'] = pkt[0][Ether].src
-    pkt_dict['ip_src'] = pkt[0][IP].src
-    pkt_dict['ip_dst'] = pkt[0][IP].dst
-    pkt_dict['tcp_sport'] = 'NULL'
-    pkt_dict['tdp_dport'] = 'NULL'
     if('tcp' in l_filter):
-        pkt_dict['tcp_sport'] = pkt[0][IP].sport
-        pkt_dict['tcp_dport'] = pkt[0][IP].dport
+        tcp_sport = pkt[0][IP].sport
+        tcp_dport = pkt[0][IP].dport
+    else:
+        tcp_sport = ''
+        tdp_dport = ''
+    header = [(
+        datetime.datetime.now(), # Now
+        l_filter, # filter name
+        pkt[0][Ether].src, # Ethernet source
+        pkt[0][IP].src, # Source IP
+        pkt[0][IP].dst, # Destination IP
+        'NULL', # TCP source port
+        'NULL'# TCP destination port
+        )]
+
     # Try to connect to SQL database
-    # Stop trying if fail
     sql = tt_sql()
-    sql.insert_rows(pkt_dict)
+    sql.insert_rows(header)
+    sql.print_table('tt_log')
 
 
 
 # sniff for echos
-icmp_sniff = AsyncSniffer(iface='eth0', prn=partial(tt_logger, 'icmp'), filter="icmp[icmptype] == icmp-echo", store=0)
+icmp_sniff = AsyncSniffer(iface='enp0s25', prn=partial(tt_logger, 'icmp'), filter="icmp[icmptype] == icmp-echo", store=0)
 
 # sniff for tcp SYN
 #tcp_syn_sniff = AsyncSniffer(iface='enp0s25', prn=tt_logger(filter='tcp-syn'), filter="tcp[tcpflags] & tcp-syn != 0", store=0)

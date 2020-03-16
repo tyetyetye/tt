@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import sqlite3
+import datetime
 
 class tt_sql():
     def __init__(self):
@@ -38,20 +39,24 @@ class tt_sql():
         finally:
             c.close()
 
-    def insert_rows(self, l_filter):
+    def insert_rows(self, header):
         c = self.conn.cursor()
-        if self.filter['sniff_filter'] == 'icmp-echo':
+        try:
             sql = """INSERT INTO tt_log(
                     datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read
-                    ) VALUES(?,?,?,?,?,?,?,?)"""
-            c.execute(sql, (l_filter['sniff_filter'],
-                            l_filter['ether_src'],
-                            l_filter['ip_src'],
-                            l_filter['ip_dst'],
-                            l_filter['tcp_src'],
-                            l_filter['tdp_dst'],
-                            'FALSE'))
+                    ) VALUES(?,?,?,?,?,?,?,FALSE)"""
+            c.execute(sql, header)
+        except:
+            raise
         self.conn.commit()
+        c.close()
+
+    def print_table(self, table):
+        c = self.conn.cursor()
+        sql = """SELECT * FROM tt_log"""
+        res = c.fetchall()
+        print(res)
+
         c.close()
 
 
