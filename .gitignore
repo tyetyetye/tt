@@ -1,4 +1,2 @@
-!/db
-*.db
 /modules/__pycache__
 /old
