@@ -1,9 +1,11 @@
 #! /usr/bin/env python
 
+from modules.investigate import tt_investigate
 from scapy.all import *
 from functools import partial
 import datetime
-from modules.sql import tt_sql
+import contextlib
+import sqlite3
 
 class tt_smeller():
     def __init__(self, sql_file, l_iface):
@@ -42,4 +44,48 @@ class tt_smeller():
             False)
 
         # Do sql stuff
-        sql = tt_sql(self.sql_file, header)
+        with contextlib.closing(sqlite3.connect(self.sql_file)) as self.conn:
+            with self.conn:
+                with contextlib.closing(self.conn.cursor()) as self.c:
+                    self.create_log()
+                    self.insert_rows(header)
+                    #self.print_table('tt_log')
+
+        invest = tt_investigate(self.sql_file)
+
+    # Create SQL log table if not exists
+    def create_log(self):
+        sql_q = """CREATE TABLE IF NOT EXISTS tt_log (
+                id INTEGER PRIMARY KEY,
+                datetime TIMESTAMP,
+                filter TEXT,
+                ether_src TEXT,
+                ip_src TEXT,
+                ip_dst TEXT,
+                tcp_src INTEGER,
+                tcp_dst INTEGER,
+                read BOOL
+                );"""
+        self.c.execute(sql_q)
+        #sql_q = """CREATE TABLE IF NOT EXISTS tt_offenders (
+        #        id integer PRIMARY KEY,
+        #        ether_addr TEXT NOT NULL,
+        #        ip_addr TEXT NOT NULL,
+        #        smb_name TEXT,
+        #        open_ports TEXT,
+        #        num_seen INTEGER
+        #        );"""
+        #self.c.execute(sql_q)
+        #self.conn.commit()
+
+    # Insert header data into log table
+    def insert_rows(self, header):
+        sql_q = "INSERT INTO tt_log(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read) VALUES(?,?,?,?,?,?,?,?)"
+        self.c.execute(sql_q, header)
+        self.conn.commit()
+
+    def print_table(self, table):
+        sql_q = "SELECT * FROM " + table
+        self.c.execute(sql_q)
+        res = self.c.fetchall()
+        print(res)
