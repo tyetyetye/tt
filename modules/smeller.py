@@ -51,7 +51,7 @@ class tt_smeller():
                     self.insert_rows(header)
                     #self.print_table('tt_log')
 
-        invest = tt_investigate(self.sql_file)
+        tt_investigate(self.sql_file)
 
     # Create SQL log table if not exists
     def create_log(self):
