@@ -2,16 +2,20 @@
 
 import sqlite3
 import datetime
+import contextlib
 
 class tt_sql():
-    def __init__(self):
-        sql_file = 'db/tt.db'
-        self.conn = sqlite3.connect(sql_file)
-        self.create_tables()
+    def __init__(self, sql_file, header):
+        #self.conn = sqlite3.connect(sql_file)
+        with contextlib.closing(sqlite3.connect(sql_file)) as self.conn:
+            with self.conn:
+                with contextlib.closing(self.conn.cursor()) as self.c:
+                    self.create_tables()
+                    self.insert_rows(header)
+                    self.print_table('tt_log')
 
     def create_tables(self):
-        c = self.conn.cursor()
-        sql = """CREATE TABLE IF NOT EXISTS tt_log (
+        sql_q = """CREATE TABLE IF NOT EXISTS tt_log (
                 id INTEGER PRIMARY KEY,
                 datetime TIMESTAMP,
                 filter TEXT,
@@ -22,8 +26,8 @@ class tt_sql():
                 tcp_dst INTEGER,
                 read BOOL
                 );"""
-        c.execute(sql)
-        sql = """CREATE TABLE IF NOT EXISTS tt_offenders (
+        self.c.execute(sql_q)
+        sql_q = """CREATE TABLE IF NOT EXISTS tt_offenders (
                 id integer PRIMARY KEY,
                 ether_addr TEXT NOT NULL,
                 ip_addr TEXT NOT NULL,
@@ -31,21 +35,16 @@ class tt_sql():
                 open_ports TEXT,
                 num_seen INTEGER
                 );"""
-        c.execute(sql)
+        self.c.execute(sql_q)
         self.conn.commit()
-        c.close()
 
     def insert_rows(self, header):
-        c = self.conn.cursor()
-        sql = "INSERT INTO tt_log(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read) VALUES(?,?,?,?,?,?,?,?)"
-        c.execute(sql, header)
+        sql_q = "INSERT INTO tt_log(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read) VALUES(?,?,?,?,?,?,?,?)"
+        self.c.execute(sql_q, header)
         self.conn.commit()
-        c.close()
 
     def print_table(self, table):
-        c = self.conn.cursor()
-        sql = "SELECT * FROM " + table
-        c.execute(sql)
-        res = c.fetchall()
+        sql_q = "SELECT * FROM " + table
+        self.c.execute(sql_q)
+        res = self.c.fetchall()
         print(res)
-        c.close()

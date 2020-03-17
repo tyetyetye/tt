@@ -6,8 +6,8 @@ from modules.sql import tt_sql
 import datetime
 
 sql_file = 'db/tt.db'
-l_iface = 'enp0s25'
-#l_iface = 'eth0'
+#l_iface = 'enp0s25'
+l_iface = 'eth0'
 
 def tt_logger(pkt_filter, pkt):
     # Create dictionary to send to SQL
