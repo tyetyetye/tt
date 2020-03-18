@@ -13,10 +13,8 @@ class tt_smeller():
         self.l_iface = l_iface
         # sniff for echos
         icmp_sniff = AsyncSniffer(iface=l_iface, prn=partial(self.logger, 'icmp-echo'), filter="icmp[icmptype] == icmp-echo", store=0)
-
         # sniff for tcp SYN
         tcp_syn_sniff = AsyncSniffer(iface=l_iface, prn=partial(self.logger, 'tcp-syn'), filter="tcp[tcpflags] & tcp-syn != 0", store=0)
-
         # sniff for tcp FIN
         tcp_fin_sniff = AsyncSniffer(iface=l_iface, prn=partial(self.logger, 'tcp-fin'), filter="tcp[tcpflags] & tcp-fin != 0", store=0)
         # start sniffing
@@ -42,19 +40,17 @@ class tt_smeller():
             tcp_sport, # TCP source port
             tcp_dport,# TCP destination port
             'unread')
-
         # Do sql stuff
         with contextlib.closing(sqlite3.connect(self.sql_file)) as self.conn:
             with self.conn:
                 with contextlib.closing(self.conn.cursor()) as self.c:
                     self.create_log()
                     self.insert_rows(header)
-
         tt_investigate(self.sql_file)
 
     # Create SQL log table if not exists
     def create_log(self):
-        sql_q = """CREATE TABLE IF NOT EXISTS tt_log (
+        sql_q = """CREATE TABLE IF NOT EXISTS tt_main (
                 id INTEGER PRIMARY KEY,
                 datetime TIMESTAMP,
                 filter TEXT,
@@ -66,20 +62,30 @@ class tt_smeller():
                 read TEXT
                 );"""
         self.c.execute(sql_q)
-        #sql_q = """CREATE TABLE IF NOT EXISTS tt_offenders (
-        #        id integer PRIMARY KEY,
-        #        ether_addr TEXT NOT NULL,
-        #        ip_addr TEXT NOT NULL,
-        #        smb_name TEXT,
-        #        open_ports TEXT,
-        #        num_seen INTEGER
-        #        );"""
-        #self.c.execute(sql_q)
-        #self.conn.commit()
+        sql_q = """CREATE TABLE IF NOT EXISTS tt_workspace (
+                id INTEGER PRIMARY KEY,
+                dateteime TIMESTAMP,
+                filter TEXT,
+                ether_src TEXT,
+                ip_src TEXT,
+                n_packets INTEGER,
+                incident_id INTEGER
+                );"""
+        self.c.execute(sql_q)
+        sql_q = """CREATE TABLE IF NOT EXISTS tt_devicelist (
+                id integer PRIMARY KEY,
+                ether_addr TEXT NOT NULL,
+                ip_addr TEXT NOT NULL,
+                smb_name TEXT,
+                open_ports TEXT,
+                num_seen INTEGER
+                );"""
+        self.c.execute(sql_q)
+        self.conn.commit()
 
     # Insert header data into log table
     def insert_rows(self, header):
-        sql_q = "INSERT INTO tt_log(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read) VALUES(?,?,?,?,?,?,?,?)"
+        sql_q = "INSERT INTO tt_main(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read) VALUES(?,?,?,?,?,?,?,?)"
         self.c.execute(sql_q, header)
         self.conn.commit()
 

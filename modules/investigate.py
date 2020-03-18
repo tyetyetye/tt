@@ -29,9 +29,9 @@ class tt_investigate():
 
     # Set read to 'open' and return open rows
     def open_rows(self):
-        sql_q = "UPDATE tt_log SET read = 'open' WHERE read = 'unread'"
+        sql_q = "UPDATE tt_main SET read = 'open' WHERE read = 'unread'"
         self.c.execute(sql_q)
-        sql_q = "SELECT * FROM tt_log WHERE read = 'open';"
+        sql_q = "SELECT * FROM tt_main WHERE read = 'open';"
         self.c.execute(sql_q)
         rows = self.c.fetchall()
         # Create dictionary of SQL column to header value
@@ -54,5 +54,5 @@ class tt_investigate():
 
     # Read all unread rows
     def do_read(self):
-        sql_q = "UPDATE tt_log SET read = 'read' WHERE read = 'open'"
+        sql_q = "UPDATE tt_main SET read = 'read' WHERE read = 'open'"
         self.c.execute(sql_q)
