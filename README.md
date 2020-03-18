@@ -12,6 +12,12 @@ Utilizes scapy and sqlite3
         * Vuln scanning of offender
     * 30 seconds, 5 minutes after offense, creates reports of activity of offending MAC/IP address
     * Reports to configurable email address and SNMP traps
+    * Once a packet is filtered pull all unread rows from SQL log:
+        * How many ICMP requests?
+        * What type of filters and how many?
+        * Wait 30 seconds and analyze again
+        * Compare 30 second analysis
+        * Get info on remote machine
 
 * TODO:
     * TCP socket listen traps

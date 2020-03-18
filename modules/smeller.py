@@ -41,7 +41,7 @@ class tt_smeller():
             pkt[0][IP].dst, # Destination IP
             tcp_sport, # TCP source port
             tcp_dport,# TCP destination port
-            False)
+            'unread')
 
         # Do sql stuff
         with contextlib.closing(sqlite3.connect(self.sql_file)) as self.conn:
@@ -49,7 +49,6 @@ class tt_smeller():
                 with contextlib.closing(self.conn.cursor()) as self.c:
                     self.create_log()
                     self.insert_rows(header)
-                    #self.print_table('tt_log')
 
         tt_investigate(self.sql_file)
 
@@ -64,7 +63,7 @@ class tt_smeller():
                 ip_dst TEXT,
                 tcp_src INTEGER,
                 tcp_dst INTEGER,
-                read BOOL
+                read TEXT
                 );"""
         self.c.execute(sql_q)
         #sql_q = """CREATE TABLE IF NOT EXISTS tt_offenders (
