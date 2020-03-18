@@ -13,20 +13,18 @@ class tt_investigate():
                 with conn:
                     with contextlib.closing(conn.cursor()) as self.c:
                         open_rows = self.open_rows()
-                        rows = self.rows_dict(open_rows)
-                        counts = self.filter_counts(rows)
+                        f_dict = self.filter_dict(open_rows)
+                        self.analyze(f_dict)
 
-    # Count filter occurences
-    def filter_counts(self, rows):
-        count_dict = {'icmp-echo': 0,
-                  'tcp-syn': 0,
-                  'tcp-fin': 0}
-        for row in range(len(rows)):
-            for key in count_dict:
-                if rows[row]['filter'] == key:
-                    count_dict[key] = count_dict[key] + 1
-        return count_dict
-
+    # Analyze data
+    def analyze(self, f_dict):
+        for key in f_dict:
+            print(f_dict[key])
+            # iterate through keys
+            # create sql table scratchpad
+            # record what is found on that table
+            # wait 30 seconds
+            # analyze again
 
 
     # Set read to 'open' and return open rows
@@ -35,21 +33,26 @@ class tt_investigate():
         self.c.execute(sql_q)
         sql_q = "SELECT * FROM tt_log WHERE read = 'open';"
         self.c.execute(sql_q)
-        return(self.c.fetchall())
+        rows = self.c.fetchall()
+        # Create dictionary of SQL column to header value
+        table_col = ('id','datetime','filter','ether_src','ip_src','ip_dst','tcp_src','tcp_dst','read')
+        sql_d = ()
+        for row in range(len(rows)):
+            sql_d += (dict(zip((table_col),(rows[row]))),)
+        return sql_d
+
+    #  Return tuple of headers for each filter
+    def filter_dict(self, rows):
+        ip_filter = {'icmp-echo': (),
+                     'tcp-syn': (),
+                     'tcp-fin': ()}
+        for row in rows:
+            for key in ip_filter:
+                if row['filter'] == key:
+                    ip_filter[key] = ip_filter[key] + (row,)
+        return ip_filter
 
     # Read all unread rows
     def do_read(self):
         sql_q = "UPDATE tt_log SET read = 'read' WHERE read = 'open'"
         self.c.execute(sql_q)
-
-    def rows_dict(self, rows):
-        # Human callable dictionary names for SQL columns
-        # Format to a tuple of dictionaries
-        table_col = ('id','datetime','filter','ether_src','ip_src','ip_dst','tcp_src','tcp_dst','read')
-        sql_t = ()
-        for row in range(len(rows)):
-            sql_t += (dict(zip((table_col),(rows[row]))),)
-        return(sql_t)
-
-
-
