@@ -6,7 +6,14 @@ class tt_investigate():
         # PID file?
         pid = True
         if(pid):
-            sql.print_table('tt_log')
+            df = sql.open_rows()
+
+    def analyze(self):
+        # count filters
+        # count ether_src within filters
+        # write these to tt_swap
+
+
 
 
 

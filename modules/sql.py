@@ -46,12 +46,14 @@ class tt_sql():
     def open_rows(self):
         sql_q = "UPDATE tt_log SET read = 'open' WHERE read = 'unread'"
         sql.execute(sql_q, self.engine)
-        pd.read_sql_table('tt_log', self.engine)
+        sql_q = "SELECT * from tt_log WHERE read = 'open'"
+        data = pd.read_sql_query(sql_q, self.engine, index_col='id')
+        return data
 
     def insert_row_header(self, header):
         sql_q = "INSERT INTO tt_log(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read) VALUES(?,?,?,?,?,?,?,?)"
         sql.execute(sql_q, self.engine, params=header)
 
     def print_table(self, table):
-        data = pd.read_sql_table('tt_log', self.engine, index_col='id')
+        data = pd.read_sql_table(table, self.engine, index_col='id')
         print(data)
