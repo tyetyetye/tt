@@ -1,15 +1,39 @@
 #! /usr/bin/env python
 
-from modules.sql import tt_sql
-
 class tt_investigate():
     def __init__(self, sql):
         # Todo: check if investigation is running
         # PID file?
         pid = True
         if(pid):
-            rows = sql.open_rows()
             sql.print_table('tt_log')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     ##  Return tuple of headers for each filter
     #def filter_dict(self, rows):

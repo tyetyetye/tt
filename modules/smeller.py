@@ -5,12 +5,9 @@ from modules.sql import tt_sql
 from scapy.all import *
 from functools import partial
 import datetime
-import contextlib
-import sqlite3
 
 class tt_smeller(tt_sql):
-    def __init__(self, sql, l_iface):
-        self.sql = sql
+    def __init__(self, l_iface):
         # sniff for echos
         icmp_sniff = AsyncSniffer(iface=l_iface, prn=partial(self.logger, 'icmp-echo'), filter="icmp[icmptype] == icmp-echo", store=0)
         # sniff for tcp SYN
@@ -42,5 +39,6 @@ class tt_smeller(tt_sql):
             'unread')
         # Do sql stuff
         sql = tt_sql()
-        self.sql.insert_row_header(header)
-        tt_investigate(self.sql)
+        sql.insert_row_header(header)
+        tt_investigate(sql)
+

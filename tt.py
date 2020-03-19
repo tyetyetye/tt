@@ -9,4 +9,5 @@ l_iface = 'eth0'
 
 sql = tt_sql()
 sql.create_tables()
-smeller = tt_smeller(sql, l_iface)
+del sql
+smeller = tt_smeller(l_iface)

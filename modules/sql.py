@@ -1,14 +1,16 @@
 #! /usr/bin/env python
 
 import sqlite3
+import pandas as pd
+from sqlalchemy import create_engine
+from pandas.io import sql
 
 class tt_sql():
     def __init__(self):
         self.sql_file = 'db/tt.db'
+        self.engine = create_engine('sqlite:////home/jtye/tt/db/tt.db')
 
     def create_tables(self) :
-        conn = sqlite3.connect(self.sql_file)
-        c = conn.cursor()
         sql_q = """CREATE TABLE IF NOT EXISTS tt_log (
                 id INTEGER PRIMARY KEY,
                 datetime TIMESTAMP,
@@ -20,7 +22,7 @@ class tt_sql():
                 tcp_dst INTEGER,
                 read TEXT
                 );"""
-        c.execute(sql_q)
+        sql.execute(sql_q, self.engine)
         sql_q = """CREATE TABLE IF NOT EXISTS tt_swap (
                 id INTEGER PRIMARY KEY,
                 dateteime TIMESTAMP,
@@ -30,7 +32,7 @@ class tt_sql():
                 n_packets INTEGER,
                 incident_id INTEGER
                 );"""
-        c.execute(sql_q)
+        sql.execute(sql_q, self.engine)
         sql_q = """CREATE TABLE IF NOT EXISTS tt_devicelist (
                 id integer PRIMARY KEY,
                 ether_addr TEXT NOT NULL,
@@ -39,35 +41,17 @@ class tt_sql():
                 open_ports TEXT,
                 num_seen INTEGER
                 );"""
-        c.execute(sql_q)
-        conn.commit()
-        conn.close()
+        sql.execute(sql_q, self.engine)
 
     def open_rows(self):
-        conn = sqlite3.connect(self.sql_file)
-        c = conn.cursor()
         sql_q = "UPDATE tt_log SET read = 'open' WHERE read = 'unread'"
-        c.execute(sql_q)
-        conn.commit()
-        sql_q = "SELECT * FROM tt_log WHERE read = 'open';"
-        c.execute(sql_q)
-        rows = c.fetchall()
-        conn.close()
-        return rows
+        sql.execute(sql_q, self.engine)
+        pd.read_sql_table('tt_log', self.engine)
 
     def insert_row_header(self, header):
-        conn = sqlite3.connect(self.sql_file)
-        c = conn.cursor()
         sql_q = "INSERT INTO tt_log(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read) VALUES(?,?,?,?,?,?,?,?)"
-        c.execute(sql_q, header)
-        conn.commit()
-        conn.close()
+        sql.execute(sql_q, self.engine, params=header)
 
     def print_table(self, table):
-        conn = sqlite3.connect(self.sql_file)
-        c = conn.cursor()
-        sql_q = "SELECT * FROM " + table
-        c.execute(sql_q)
-        res = c.fetchall()
-        print(res)
-        conn.close()
+        data = pd.read_sql_table('tt_log', self.engine, index_col='id')
+        print(data)
