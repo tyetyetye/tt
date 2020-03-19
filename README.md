@@ -27,3 +27,4 @@ Utilizes scapy and sqlite3
         * SMB info collector
     * Reporting
     * Investigator uses IPC or PID monitoring?
+    * Class inheritence?
