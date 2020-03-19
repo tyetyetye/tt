@@ -42,18 +42,29 @@ class tt_sql():
                 num_seen INTEGER
                 );"""
         sql.execute(sql_q, self.engine)
+    def sql_query(self, sql_q):
+        data = pd.read_sql_query(sql_q, self.engine, index_col='id')
+        return data
 
-    def open_rows(self):
+
+    def set_unread_open(self):
         sql_q = "UPDATE tt_log SET read = 'open' WHERE read = 'unread'"
         sql.execute(sql_q, self.engine)
         sql_q = "SELECT * from tt_log WHERE read = 'open'"
-        data = pd.read_sql_query(sql_q, self.engine, index_col='id')
-        return data
+        return sql_query(data)
 
     def insert_row_header(self, header):
         sql_q = "INSERT INTO tt_log(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read) VALUES(?,?,?,?,?,?,?,?)"
         sql.execute(sql_q, self.engine, params=header)
 
-    def print_table(self, table):
+    def get_table(self, table):
         data = pd.read_sql_table(table, self.engine, index_col='id')
-        print(data)
+        return data
+
+    def by_filter(self, columns, table):
+        filters = ['icmp-echo', 'tcp-fin', 'tcp-syn']
+        sql_t = "SELECT " + columns + " FROM " + table + " WHERE filter = '"
+        for f in range(len(filters)):
+            sql_q = sql_t + filters[f] + "';"
+            data = pd.read_sql_query(sql_q, self.engine, index_col='id'
+

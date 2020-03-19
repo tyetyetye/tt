@@ -40,6 +40,6 @@ class tt_smeller(tt_sql):
         # Do sql stuff
         sql = tt_sql()
         sql.insert_row_header(header)
-        sql.open_rows()
+        sql.set_unread_open()
         tt_investigate(sql)
 
