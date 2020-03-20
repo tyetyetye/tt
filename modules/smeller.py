@@ -1,10 +1,11 @@
 #! /usr/bin/env python
 
-from modules.investigate import tt_investigate
+#from modules.investigate import tt_investigate
 from modules.sql import tt_sql
 from scapy.all import *
 from functools import partial
 import datetime
+import time
 
 class tt_smeller(tt_sql):
     def __init__(self, l_iface):
@@ -41,5 +42,8 @@ class tt_smeller(tt_sql):
         # Do sql stuff
         sql = tt_sql()
         sql.insert_row_header(header)
-        tt_investigate(sql)
-
+        #tt_investigate(sql)
+        if sql.set_unread_open():
+            time.sleep(30)
+        else:
+            pass
