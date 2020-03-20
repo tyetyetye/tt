@@ -36,10 +36,10 @@ class tt_smeller(tt_sql):
             pkt[0][IP].dst, # Destination IP
             tcp_sport, # TCP source port
             tcp_dport,# TCP destination port
-            'unread')
+            'unread', # Read status
+            0) # default incident ID
         # Do sql stuff
         sql = tt_sql()
         sql.insert_row_header(header)
-        sql.set_unread_open()
         tt_investigate(sql)
 

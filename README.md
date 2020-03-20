@@ -33,6 +33,7 @@ Utilizes scapy and sqlite3
     * PID lock for investigator?  Check swp for ether src being worked on, if so blacklist it from analysis.
     * When tt is touched it port scans/smb lookup and monitors changes after 30 seconds and 5 minutes.  sending email each time
     * Check if swap is empty, may indicate an ongoing investigation
+    
     * Create ticket no to tt log to indicate which ticket number this instance is working on.
     * Count open by filter
     * For each filter select count of each 'ether src', 'ip src'
@@ -48,7 +49,7 @@ Utilizes scapy and sqlite3
     * Call investigator recursively sending ticket id along
     * Compare unread packets with ticket id related packets
     * Send email report
-    * If new do analysis on number of pings (if they stopped), port scan and tcp-fin connection  
+    * If new do analysis on number of pings (if they stopped), port scan and tcp-fin connection
     * Sleep 5 minutes
     * Call investigator recurseively sending ticket id along
     * If changes send final email with the number of tcp syn connections and on which ports, number of pings, smb name, open ports, number of successful handshakes and on which ports

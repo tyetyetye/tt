@@ -6,8 +6,9 @@ class tt_investigate():
         # PID file?
         pid = True
         if(pid):
-            df = sql.set_unread_open()
-            sql.filter_counts('ether_src, ip_src', 'tt_main')
+            sql.set_unread_open()
+            #print(sql.get_table('tt_log'))
+            #sql.filter_counts('ether_src, ip_src', 'tt_main')
 
     #def analyze(self):
         # count filters
