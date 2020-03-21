@@ -85,7 +85,7 @@ class tt_sql():
         else:
             # New incident
             incident = self.get_incident()
-            print("Swap empty!  Creating new incident id: %s." % incident)
+            #print("Swap empty!  Creating new incident id: %s." % incident)
             # Check if new device
             self.new_device_chk(ether, incident)
             print(" * Creating entry in swap for %s (incident id: %s)" % (ether, incident))
@@ -95,28 +95,34 @@ class tt_sql():
         self.sql_wrap(sql_q, params = head, commit = True)
         # Open up some rows
         self.set_unread_open(incident)
+        # Add or update swap
         self.read_filter(ether, incident, action = act)
-        #print("***Swap table:\n%s" % self.get_table(self.swap_table))
-        #print("***Log table:\n%s" % self.get_table(self.log_table))
-        #print("***Dev table:\n%s" % self.get_table(self.dev_table))
 
+        # Start worker to analyze swap data
         if act == 'add':
-            sleep_t = 30
-            print("  * Worker for ether %s (incident id: %s) sleeping for %s seconds." % (ether, incident, sleep_t))
+            sleep_t = 5
+            print(" ** Worker for ether %s (incident id: %s) sleeping for %s seconds." % (ether, incident, sleep_t))
             t = threading.Timer(sleep_t, self.worker, [ether, incident]) 
             t.start()
+            # start function to process data in report after sleeping for x time
+            pass
 
     def worker(self, ether, incident):
-        filt = ['icmp-echo', 'tcp-syn', 'tcp-fin']
-        for f in range(len(filt)):
-            sql_q = "SELECT id, filter, n_packets FROM " + self.swap_table + " WHERE ether_src = '" + ether + "' AND filter = '" + filt[f] + "' AND incident_id =" + str(incident)
-            select = self.sql_wrap(sql_q, select = True)
-            if(select):
-                id = str(select[0][0])
-                print("Do stuff with 30 seconds of swap data")
-                print("Deleting swap for %s (incident %s)." % (ether, incident))
-                sql_q = "DELETE FROM " + self.swap_table + " WHERE id = " + id
-                self.sql_wrap(sql_q, commit = True)
+        sql_q = "SELECT id, n_packets, filter FROM " + self.swap_table + " WHERE ether_src = '" + ether + "' AND incident_id =" + str(incident)
+        select = self.sql_wrap(sql_q, select = True)
+        if(select):
+            id = str(select[0][0])
+            n_pack = str(select[0][1])
+            filt = select[0][2]
+            print("Deleting swap for %s (incident %s)." % (ether, incident))
+            sql_q = "DELETE FROM " + self.swap_table + " WHERE id = " + id
+            self.sql_wrap(sql_q, commit = True)
+            self.report(id, n_pack, filt)
+
+    def report(self, id, n_pack, filt):
+        # Insert to report table data sent from worker
+        pass
+        
 
     def get_incident(self):
         sql_q = "SELECT MAX(incident_id) FROM " + self.log_table
@@ -142,7 +148,7 @@ class tt_sql():
         sql_q = "SELECT ether_src, incident_id FROM " + self.dev_table + " WHERE ether_src = '" + ether  + "'"
         dev = self.sql_wrap(sql_q, select = True)
         if not dev:
-            print("  * Device %s has never been seen before.  Adding to device list." % ether)
+            print(" * Device %s has never been seen before.  Adding to device list." % ether)
             smb = 0
             ports = 0
             n_seen = 1
@@ -157,7 +163,7 @@ class tt_sql():
             id = dev[0]
             if incident != inc:
                 # Is this correct below?
-                print("  * Device %s has been seen before on incident %s.  Updating seen count to %s." % (ether, inc, cnt))
+                print(" * Device %s has been seen before on incident %s.  Updating seen count to %s." % (ether, inc, cnt))
                 # If ether seen on previous incident, increment num_seen
                 sql_q = "UPDATE " + self.dev_table + " SET num_seen = " + str(cnt) + ", incident_id = " + str(incident) + " WHERE id = " + str(id)
                 self.sql_wrap(sql_q, commit = True)
