@@ -12,20 +12,21 @@ l_iface = 'enp0s25'
 def main():
     sql = tt_sql()
     sql.create_tables()
+    del sql
 
     # sniff for echos
-    icmp_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, sql, 'icmp-echo'), filter="icmp[icmptype] == icmp-echo", store=0)
+    icmp_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, 'icmp-echo'), filter="icmp[icmptype] == icmp-echo", store=0)
     # sniff for tcp SYN
-    tcp_syn_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, sql, 'tcp-syn'), filter="tcp[tcpflags] & tcp-syn != 0", store=0)
+    tcp_syn_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, 'tcp-syn'), filter="tcp[tcpflags] & tcp-syn != 0", store=0)
     # sniff for tcp FIN
-    tcp_fin_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, sql, 'tcp-fin'), filter="tcp[tcpflags] & tcp-fin != 0", store=0)
+    tcp_fin_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, 'tcp-fin'), filter="tcp[tcpflags] & tcp-fin != 0", store=0)
     # start sniffing
     icmp_sniff.start()
     tcp_syn_sniff.start()
     tcp_fin_sniff.start()
     input()
 
-def logger(sql, pkt_filter, pkt):
+def logger(pkt_filter, pkt):
     # Create dictionary to send to SQL
     if pkt_filter == 'tcp-syn' or pkt_filter == 'tcp-fin':
         tcp_sport = pkt[0][IP].sport
@@ -43,6 +44,7 @@ def logger(sql, pkt_filter, pkt):
         'unread', # Read status
         0) # default incident ID
     # Do sql stuff
+    sql = tt_sql()
     sql.insert_row_header(header)
     #if sql.set_unread_open():
         #print(sql.get_table('tt_log'))
