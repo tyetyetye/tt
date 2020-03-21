@@ -5,13 +5,17 @@ import contextlib
 import datetime
 import time
 import threading
+import random
+from scapy.all import IP, sr1, TCP
 
 class tt_sql():
     def __init__(self):
+        self.worker_sleep = 60
         self.sql_file = 'db/tt.db'
         self.log_table = 'tt_log'
         self.swap_table = 'tt_swap'
         self.dev_table = 'tt_devicelist'
+        self.rep_table = 'tt_report'
 
     def sql_wrap(self, sql_q, params = None, commit = False, select = False):
         with contextlib.closing(sqlite3.connect(self.sql_file)) as conn:
@@ -57,10 +61,20 @@ class tt_sql():
         sql_q = "CREATE TABLE IF NOT EXISTS " + self.dev_table + """(
                 id integer PRIMARY KEY,
                 ether_src TEXT,
-                smb_name TEXT,
-                open_ports TEXT,
+                ports TEXT,
+                smb TEXT,
                 incident_id INTEGER,
                 num_seen INTEGER
+                );"""
+        self.sql_wrap(sql_q, commit = True)
+        sql_q = "CREATE TABLE IF NOT EXISTS " + self.rep_table + """(
+                id integer PRIMARY KEY,
+                datetime TIMESTAMP,
+                filter TEXT,
+                ether_src TEXT,
+                ip_src TEXT,
+                n_packets INTEGER,
+                incident_id
                 );"""
         self.sql_wrap(sql_q, commit = True)
 
@@ -78,51 +92,73 @@ class tt_sql():
                     act = 'update'
                 else:
                     incident = self.get_incident()
-                    print("%s was not found in swap.  Creating new incident id: %s." % (ether, incident))
-                    self.new_device_chk(ether, incident)
-                    print("  * Creating entry in swap for %s (incident id: %s)" % (ether, incident))
+                    #self.new_device_chk(ether, incident)
                     act = 'add'
         else:
-            # New incident
             incident = self.get_incident()
-            #print("Swap empty!  Creating new incident id: %s." % incident)
-            # Check if new device
-            self.new_device_chk(ether, incident)
-            print(" * Creating entry in swap for %s (incident id: %s)" % (ether, incident))
+            #self.new_device_chk(ether, incident)
             act = 'add'
         head = (header[0], header[1], header[2], header[3], header[4], header[5], header[6], header[7], incident)
         sql_q = "INSERT INTO " + self.log_table + "(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read, incident_id) VALUES(?,?,?,?,?,?,?,?,?)"
         self.sql_wrap(sql_q, params = head, commit = True)
+        # Check device list
+        self.new_device_chk(ether, incident)
         # Open up some rows
         self.set_unread_open(incident)
         # Add or update swap
         self.read_filter(ether, incident, action = act)
-
         # Start worker to analyze swap data
         if act == 'add':
-            sleep_t = 5
-            print(" ** Worker for ether %s (incident id: %s) sleeping for %s seconds." % (ether, incident, sleep_t))
-            t = threading.Timer(sleep_t, self.worker, [ether, incident]) 
+            print(" ** Worker thread for ether %s (incident id: %s) sleeping for %s seconds." % (ether, incident, self.worker_sleep))
+            t = threading.Timer(self.worker_sleep, self.worker, [ether, incident]) 
             t.start()
-            # start function to process data in report after sleeping for x time
-            pass
+            print(self.get_table(self.dev_table))
+            print(self.get_table(self.rep_table))
 
     def worker(self, ether, incident):
-        sql_q = "SELECT id, n_packets, filter FROM " + self.swap_table + " WHERE ether_src = '" + ether + "' AND incident_id =" + str(incident)
+        sql_q = "SELECT id, n_packets, filter, incident_id, ip_src FROM " + self.swap_table + " WHERE ether_src = '" + ether + "' AND incident_id =" + str(incident)
         select = self.sql_wrap(sql_q, select = True)
         if(select):
             id = str(select[0][0])
             n_pack = str(select[0][1])
             filt = select[0][2]
+            inc = select[0][3]
+            ip = select[0][4]
             print("Deleting swap for %s (incident %s)." % (ether, incident))
             sql_q = "DELETE FROM " + self.swap_table + " WHERE id = " + id
             self.sql_wrap(sql_q, commit = True)
-            self.report(id, n_pack, filt)
+            print("Creating report for %s (incident %s), filter %s" % (ether, inc, filt))
+            sql_q = "INSERT INTO " + self.rep_table + "(datetime, filter, ether_src, ip_src, n_packets, incident_id) VALUES(?,?,?,?,?,?)"
+            param = (datetime.datetime.now(), filt, ether, ip, n_pack, inc)
+            self.sql_wrap(sql_q, params = param, commit = True)
 
-    def report(self, id, n_pack, filt):
-        # Insert to report table data sent from worker
-        pass
-        
+    def inspect(self, ether):
+        sql_q = "SELECT DISTINCT ip_src FROM " + self.log_table + " WHERE ether_src = '" + ether + "'"
+        host = self.sql_wrap(sql_q, select = True)[0][0]
+        ports = [21, 22, 23, 25, 80, 135, 139, 443, 445, 1723, 3389]
+        port = []
+        for dst_port in ports:
+            src_port = random.randint(1025, 65534)
+            resp = sr1(
+                    IP(dst = host)/TCP(sport = src_port, dport = dst_port, flags = "S"), timeout = 1, verbose = 0,)
+            if resp:
+                if resp.haslayer(TCP):
+                    if resp.getlayer(TCP).flags == 0x12:
+                        # Send a RST to close the connection
+                        # RST vs FIN for filter
+                        send_rst = sr1(
+                                IP(dst = host)/TCP(sport = src_port, dport = dst_port, flags = 'R'), timeout = 1, verbose = 0,)
+                        port.append(dst_port)
+        if port:
+            prt = ""
+            for p in range(len(port)):
+                a = str(port[p])
+                if p == len(port) - 1:
+                    prt = prt + a
+                else:
+                    prt = prt + a + ", "
+                sql_q = "UPDATE " + self.dev_table + " SET ports = '" + prt + "' WHERE ether_src = '" + ether + "'"
+                self.sql_wrap(sql_q, commit = True)
 
     def get_incident(self):
         sql_q = "SELECT MAX(incident_id) FROM " + self.log_table
@@ -150,19 +186,20 @@ class tt_sql():
         if not dev:
             print(" * Device %s has never been seen before.  Adding to device list." % ether)
             smb = 0
-            ports = 0
             n_seen = 1
-            param = (ether, smb, ports, incident, n_seen)
-            sql_q = "INSERT INTO " + self.dev_table + "(ether_src, smb_name, open_ports, incident_id, num_seen) VALUES(?,?,?,?,?)"
+            param = (ether, incident, n_seen)
+            sql_q = "INSERT INTO " + self.dev_table + "(ether_src, incident_id, num_seen) VALUES(?,?,?)"
             self.sql_wrap(sql_q, params = param, commit = True)
+            # Perform port scan and smb lookup
+            t = threading.Thread(target = self.inspect, args = (ether,))
+            t.start()
         else:
             sql_q = "SELECT id, incident_id, num_seen FROM " + self.dev_table + " WHERE ether_src = '" + ether + "'"
             dev = self.sql_wrap(sql_q, select = True)[0]
-            cnt = dev[2] + 1
-            inc = dev[1]
             id = dev[0]
+            inc = dev[1]
+            cnt = dev[2] + 1
             if incident != inc:
-                # Is this correct below?
                 print(" * Device %s has been seen before on incident %s.  Updating seen count to %s." % (ether, inc, cnt))
                 # If ether seen on previous incident, increment num_seen
                 sql_q = "UPDATE " + self.dev_table + " SET num_seen = " + str(cnt) + ", incident_id = " + str(incident) + " WHERE id = " + str(id)
