@@ -1,6 +1,5 @@
 Tattle Tale (tt)
 
-Uses inbtscan (https://github.com/iiilin/inbt)
 
 * About:
     * Listens for packets matching definable filters and logs to sqlite3 database

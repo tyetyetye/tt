@@ -10,7 +10,7 @@ import random
 from scapy.all import IP, TCP, sr1
 from modules.nbstat import smb_name
 
-worker_sleep = 5
+worker_sleep = 15
 sql_file = 'db/tt.db'
 log_table = 'tt_log'
 swap_table = 'tt_swap'
@@ -130,7 +130,7 @@ def worker(ether, incident):
         param = (datetime.datetime.now(), filt, ether, ip, n_pack, inc)
         sql(sql_q, params = param, commit = True)
         print(get_table(dev_table))
-        #print(get_table(rep_table))
+        print(get_table(rep_table))
 
 def tcp_scan(ether):
     port = []
@@ -145,7 +145,7 @@ def tcp_scan(ether):
                 if resp.getlayer(TCP).flags == 0x12:
                     # Send a RST to close the connection
                     send_rst = sr1(
-                            IP(dst = host)/TCP(sport = src_port, dport = dst_port, flags = 'R'), timeout = 1, verbose = 0,)
+                            IP(dst = host)/TCP(sport = src_port, dport = dst_port, flags = 'R',), timeout = 1, verbose = 0,)
                     port.append(dst_port)
                     # Todo if 135 is not open, edit nbstat to work for 145
                     if dst_port == 135:
@@ -234,6 +234,7 @@ def read_filter(ether, incident, action = None):
                     n_pack = str(s[0][1] + 1)
                     sql_q = "UPDATE " + swap_table + " SET n_packets = " + n_pack + " WHERE id = " + id
                     sql(sql_q, commit = True)
+    print(get_table(swap_table))
 
 def get_table(table):
     sql_q = "SELECT * FROM " + table
