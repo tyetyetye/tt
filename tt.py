@@ -5,20 +5,21 @@ import time
 from scapy.all import AsyncSniffer, Ether, IP
 from functools import partial
 from modules.sql import create_tables, insert_header
+from modules.nbstat import smb_name, nbns_name
 
 l_iface = 'enp0s25'
 #l_iface = 'eth0'
 
+whitelist_mac = ['88:51:fb:5a:ca:c0']
+
+
 def main():
     create_tables()
 
-    # sniff for echos
-    icmp_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, 'icmp-echo'), filter="icmp[icmptype] == icmp-echo", store=0)
-    # sniff for tcp SYN
-    tcp_syn_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, 'tcp-syn'), filter="tcp[tcpflags] & tcp-syn != 0", store=0)
-    # sniff for tcp FIN
-    tcp_fin_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, 'tcp-fin'), filter="tcp[tcpflags] & tcp-fin != 0", store=0)
     # start sniffing
+    icmp_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, 'icmp-echo'), filter="icmp[icmptype] == icmp-echo", store=0)
+    tcp_syn_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, 'tcp-syn'), filter="tcp[tcpflags] & tcp-syn != 0", store=0)
+    tcp_fin_sniff = AsyncSniffer(iface=l_iface, prn=partial(logger, 'tcp-fin'), filter="tcp[tcpflags] & tcp-fin != 0", store=0)
     icmp_sniff.start()
     tcp_syn_sniff.start()
     tcp_fin_sniff.start()
@@ -41,8 +42,10 @@ def logger(pkt_filter, pkt):
         tcp_dport,# TCP destination port
         'unread', # Read status
         0) # default incident ID
-    # Do sql stuff
-    insert_header(header)
+    # Portscan will cause filters from tt
+    if not header[2] in whitelist_mac:
+        # Do sql stuff
+        insert_header(header)
 
 if __name__=='__main__':
     main()
