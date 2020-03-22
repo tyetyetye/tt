@@ -10,7 +10,7 @@ import random
 from scapy.all import IP, TCP, sr1
 from modules.nbstat import smb_name
 
-worker_sleep = 15
+worker_sleep = 3
 sql_file = 'db/tt.db'
 log_table = 'tt_log'
 swap_table = 'tt_swap'
@@ -18,6 +18,7 @@ dev_table = 'tt_devicelist'
 rep_table = 'tt_report'
 scan_ports = [135, 137, 445, 3389]
 filters = ['icmp-echo', 'tcp-syn', 'tcp-fin']
+white_mac = '88:51:fb:5a:ca:c0'
 
 # Wrapper function for sql queries
 def sql(sql_q, params = None, commit = False, select = False):
@@ -82,37 +83,39 @@ def create_tables():
     sql(sql_q, commit = True)
 
 def insert_header(header):
-    # Check if ether src is related to current incident
     incident = header[8]
     ether = header[2]
-    sql_q = "SELECT DISTINCT ether_src, incident_id FROM " + swap_table + " WHERE ether_src = '" + ether + "'"
-    swap = sql(sql_q, select = True)
-    # If ether src exists on swap
-    if swap:
-        for s in swap:
-            if ether == s[0]:
-                incident = s[1]
-                act = 'update'
-            else:
-                incident = get_incident()
-                act = 'add'
-    else:
-        incident = get_incident()
-        act = 'add'
-    head = (header[0], header[1], header[2], header[3], header[4], header[5], header[6], header[7], incident)
-    sql_q = "INSERT INTO " + log_table + "(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read, incident_id) VALUES(?,?,?,?,?,?,?,?,?)"
-    sql(sql_q, params = head, commit = True)
-    # Check device list
-    new_device_chk(ether, incident)
-    # Open up some rows
-    set_unread_open(incident)
-    # Add or update swap
-    read_filter(ether, incident, action = act)
-    # Start worker to analyze swap data
-    if act == 'add':
-        print(" ** Worker thread for ether %s (incident id: %s) sleeping for %s seconds." % (ether, incident, worker_sleep))
-        t = threading.Timer(worker_sleep, worker, [ether, incident]) 
-        t.start()
+    # Do nothing if it our MAC
+    if not ether in white_mac:
+        # Check if ether src is related to current incident
+        sql_q = "SELECT DISTINCT ether_src, incident_id FROM " + swap_table + " WHERE ether_src = '" + ether + "'"
+        swap = sql(sql_q, select = True)
+        # If ether src exists on swap
+        if swap:
+            for s in swap:
+                if ether == s[0]:
+                    incident = s[1]
+                    act = 'update'
+                else:
+                    incident = get_incident()
+                    act = 'add'
+        else:
+            incident = get_incident()
+            act = 'add'
+        head = (header[0], header[1], header[2], header[3], header[4], header[5], header[6], header[7], incident)
+        sql_q = "INSERT INTO " + log_table + "(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read, incident_id) VALUES(?,?,?,?,?,?,?,?,?)"
+        sql(sql_q, params = head, commit = True)
+        # Check device list
+        new_device_chk(ether, incident)
+        # Open up some rows
+        set_unread_open(incident)
+        # Add or update swap
+        read_filter(ether, incident, action = act)
+        # Start worker to analyze swap data
+        if act == 'add':
+            print(" ** Worker thread for ether %s (incident id: %s) sleeping for %s seconds." % (ether, incident, worker_sleep))
+            t = threading.Timer(worker_sleep, worker, [ether, incident]) 
+            t.start()
 
 def worker(ether, incident):
     sql_q = "SELECT id, n_packets, filter, incident_id, ip_src FROM " + swap_table + " WHERE ether_src = '" + ether + "' AND incident_id =" + str(incident)
@@ -130,7 +133,7 @@ def worker(ether, incident):
         param = (datetime.datetime.now(), filt, ether, ip, n_pack, inc)
         sql(sql_q, params = param, commit = True)
         print(get_table(dev_table))
-        print(get_table(rep_table))
+        #print(get_table(rep_table))
 
 def tcp_scan(ether):
     port = []
@@ -234,7 +237,7 @@ def read_filter(ether, incident, action = None):
                     n_pack = str(s[0][1] + 1)
                     sql_q = "UPDATE " + swap_table + " SET n_packets = " + n_pack + " WHERE id = " + id
                     sql(sql_q, commit = True)
-    print(get_table(swap_table))
+    #print(get_table(swap_table))
 
 def get_table(table):
     sql_q = "SELECT * FROM " + table
