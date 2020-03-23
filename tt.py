@@ -5,10 +5,9 @@ import time
 from scapy.all import AsyncSniffer, Ether, IP
 from functools import partial
 from modules.sql import create_tables, insert_header
-from modules.nbstat import smb_name
 
-l_iface = 'enp0s25'
-#l_iface = 'eth0'
+#l_iface = 'enp0s25'
+l_iface = 'eth0'
 
 def main():
     create_tables()

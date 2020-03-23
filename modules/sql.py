@@ -8,17 +8,16 @@ import threading
 #from threading import Timer,
 import random
 from scapy.all import IP, TCP, sr1
-from modules.nbstat import smb_name
 
-worker_sleep = 3
+worker_sleep = 60
 sql_file = 'db/tt.db'
 log_table = 'tt_log'
 swap_table = 'tt_swap'
 dev_table = 'tt_devicelist'
 rep_table = 'tt_report'
-scan_ports = [135, 137, 445, 3389]
+scan_ports = [135, 139, 445, 3389]
 filters = ['icmp-echo', 'tcp-syn', 'tcp-fin']
-white_mac = '88:51:fb:5a:ca:c0'
+scan_iface = 'eth1'
 
 # Wrapper function for sql queries
 def sql(sql_q, params = None, commit = False, select = False):
@@ -66,7 +65,6 @@ def create_tables():
             id integer PRIMARY KEY,
             ether_src TEXT,
             ports TEXT,
-            smb TEXT,
             incident_id INTEGER,
             num_seen INTEGER
             );"""
@@ -85,37 +83,35 @@ def create_tables():
 def insert_header(header):
     incident = header[8]
     ether = header[2]
-    # Do nothing if it our MAC
-    if not ether in white_mac:
-        # Check if ether src is related to current incident
-        sql_q = "SELECT DISTINCT ether_src, incident_id FROM " + swap_table + " WHERE ether_src = '" + ether + "'"
-        swap = sql(sql_q, select = True)
-        # If ether src exists on swap
-        if swap:
-            for s in swap:
-                if ether == s[0]:
-                    incident = s[1]
-                    act = 'update'
-                else:
-                    incident = get_incident()
-                    act = 'add'
-        else:
-            incident = get_incident()
-            act = 'add'
-        head = (header[0], header[1], header[2], header[3], header[4], header[5], header[6], header[7], incident)
-        sql_q = "INSERT INTO " + log_table + "(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read, incident_id) VALUES(?,?,?,?,?,?,?,?,?)"
-        sql(sql_q, params = head, commit = True)
-        # Check device list
-        new_device_chk(ether, incident)
-        # Open up some rows
-        set_unread_open(incident)
-        # Add or update swap
-        read_filter(ether, incident, action = act)
-        # Start worker to analyze swap data
-        if act == 'add':
-            print(" ** Worker thread for ether %s (incident id: %s) sleeping for %s seconds." % (ether, incident, worker_sleep))
-            t = threading.Timer(worker_sleep, worker, [ether, incident]) 
-            t.start()
+    # Check if ether src is related to current incident
+    sql_q = "SELECT DISTINCT ether_src, incident_id FROM " + swap_table + " WHERE ether_src = '" + ether + "'"
+    swap = sql(sql_q, select = True)
+    # If ether src exists on swap
+    if swap:
+        for s in swap:
+            if ether == s[0]:
+                incident = s[1]
+                act = 'update'
+            else:
+                incident = get_incident()
+                act = 'add'
+    else:
+        incident = get_incident()
+        act = 'add'
+    head = (header[0], header[1], header[2], header[3], header[4], header[5], header[6], header[7], incident)
+    sql_q = "INSERT INTO " + log_table + "(datetime, filter, ether_src, ip_src, ip_dst, tcp_src, tcp_dst, read, incident_id) VALUES(?,?,?,?,?,?,?,?,?)"
+    sql(sql_q, params = head, commit = True)
+    # Check device list
+    new_device_chk(ether, incident)
+    # Open up some rows
+    set_unread_open(incident)
+    # Add or update swap
+    read_filter(ether, incident, action = act)
+    # Start worker to analyze swap data
+    if act == 'add':
+        print(" ** Worker thread for ether %s (incident id: %s) sleeping for %s seconds." % (ether, incident, worker_sleep))
+        t = threading.Timer(worker_sleep, worker, [ether, incident])
+        t.start()
 
 def worker(ether, incident):
     sql_q = "SELECT id, n_packets, filter, incident_id, ip_src FROM " + swap_table + " WHERE ether_src = '" + ether + "' AND incident_id =" + str(incident)
@@ -132,8 +128,10 @@ def worker(ether, incident):
         sql_q = "INSERT INTO " + rep_table + "(datetime, filter, ether_src, ip_src, n_packets, incident_id) VALUES(?,?,?,?,?,?)"
         param = (datetime.datetime.now(), filt, ether, ip, n_pack, inc)
         sql(sql_q, params = param, commit = True)
+        print("*** Device Table ***")
         print(get_table(dev_table))
-        #print(get_table(rep_table))
+        print("*** Report Table ***")
+        print(get_table(rep_table))
 
 def tcp_scan(ether):
     port = []
@@ -142,20 +140,14 @@ def tcp_scan(ether):
     for dst_port in scan_ports:
         src_port = random.randint(1025, 65534)
         resp = sr1(
-                IP(dst = host)/TCP(sport = src_port, dport = dst_port, flags = 'S'), timeout = 1, verbose = 0,)
+                IP(dst = host)/TCP(sport = src_port, dport = dst_port, flags = 'S'), timeout = 1, verbose = 0, iface=scan_iface,)
         if resp:
             if resp.haslayer(TCP):
                 if resp.getlayer(TCP).flags == 0x12:
                     # Send a RST to close the connection
                     send_rst = sr1(
-                            IP(dst = host)/TCP(sport = src_port, dport = dst_port, flags = 'R',), timeout = 1, verbose = 0,)
+                            IP(dst = host)/TCP(sport = src_port, dport = dst_port, flags = 'R',), timeout = 1, verbose = 0, iface=scan_iface,)
                     port.append(dst_port)
-                    # Todo if 135 is not open, edit nbstat to work for 145
-                    if dst_port == 135:
-                        smb_n = smb_name(host, dst_port)
-                        if smb_n:
-                            sql_q = "UPDATE " + dev_table + " SET smb = '" + smb_n + "' WHERE ether_src = '" + ether + "'"
-                            sql(sql_q, commit = True)
     if port:
         prt = ""
         for p in range(len(port)):
@@ -191,12 +183,11 @@ def new_device_chk(ether, incident):
     dev = sql(sql_q, select = True)
     if not dev:
         print(" * Device %s has never been seen before.  Adding to device list." % ether)
-        smb = 0
         n_seen = 1
         param = (ether, incident, n_seen)
         sql_q = "INSERT INTO " + dev_table + "(ether_src, incident_id, num_seen) VALUES(?,?,?)"
         sql(sql_q, params = param, commit = True)
-        # Perform port scan and smb lookup
+        # Perform port scan and
         t = threading.Thread(target = tcp_scan, args = (ether,))
         t.start()
     else:
