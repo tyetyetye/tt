@@ -4,7 +4,6 @@
       <table border = 1>
          <thead>
             <td>Datetime</td>
-            <td>filter</td>
             <td>Ether Address</td>
             <td>IP Address</td>
             <td>Packet count</td>
@@ -13,8 +12,7 @@
 {% for row in rows %}
             <tr>
                <td>{{row[1]}}</td>
-               <td>{{row[2]}}</td>
-               <td>{{row[3]}}</td>
+               <td><a href="/devices/{{row[3]}}">{{row[3]}}</a></td>
                <td>{{row[4]}}</td>
                <td>{{row[5]}}</td>	
                <td><a href="/reports/{{row[6]}}">{{row[6]}}</a></td>

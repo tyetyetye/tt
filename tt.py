@@ -18,7 +18,8 @@ def main():
     icmp_sniff.start()
     tcp_syn_sniff.start()
     tcp_fin_sniff.start()
-    input()
+    while True:
+        pass
 
 def logger(pkt_filter, pkt):
     # Create dictionary to send to SQL
@@ -28,9 +29,10 @@ def logger(pkt_filter, pkt):
     else:
         tcp_sport = 0
         tcp_dport = 0
+    ether = pkt[0][Ether].src.replace(':', '')
     header = (datetime.datetime.now(), # Now
         pkt_filter, # filter name
-        pkt[0][Ether].src, # Ethernet source
+        ether, # Ethernet source
         pkt[0][IP].src, # Source IP
         pkt[0][IP].dst, # Destination IP
         tcp_sport, # TCP source port

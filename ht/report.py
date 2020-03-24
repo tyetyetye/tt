@@ -4,6 +4,8 @@ from flask import Flask, redirect, url_for, request, render_template
 import flask_login
 import sqlite3
 
+sql_db = '/home/jtye/tt/db/tt.db'
+
 app = Flask(__name__)
 app.secret_key = 'ekyfvfFYZVAWm6dx4Gy5TEs8av2WLKDQB9mdeqGaGGLb9yzh2WsM8nhknBHLHnHxrCqxw9PMw8pph8BsMCmPmuqQXPzRE7XZNqAcnrz5rfCqbvY5aMjJRdGk'
 
@@ -19,9 +21,26 @@ class User(flask_login.UserMixin):
 def index():
     return '''<a href="/login">login</a>'''
 
+@app.route('/devices')
+def devices():
+    with sqlite3.connect(sql_db) as con:
+        cur = con.cursor()
+        cur.execute("select * from tt_devicelist")
+        rows = cur.fetchall()
+        return render_template("devices.html", rows = rows)
+
+@app.route('/devices/<dev>')
+def ether_dev(dev):
+    with sqlite3.connect(sql_db) as con:
+        cur = con.cursor()
+        sql_q = "select * from tt_log where ether_src = '" + dev + "'"
+        cur.execute(sql_q)
+        rows = cur.fetchall()
+        return render_template("ether.html", rows = rows)
+
 @app.route('/reports')
 def reports():
-    with sqlite3.connect("../db/tt.db") as con:
+    with sqlite3.connect(sql_db) as con:
         cur = con.cursor()
         cur.execute("select * from tt_report")
         rows = cur.fetchall()
@@ -29,7 +48,7 @@ def reports():
 
 @app.route('/reports/<inc>')
 def incident(inc):
-    with sqlite3.connect("../db/tt.db") as con:
+    with sqlite3.connect(sql_db) as con:
         cur = con.cursor()
         sql_q = "select * from tt_log where incident_id = " + inc + " and read = 'read'"
         cur.execute(sql_q)
@@ -93,4 +112,4 @@ def unauthorized_handler():
 
 if __name__ == "__main__":
     app.debug = True
-    app.run(host='0.0.0.0', port='45454')
+    app.run(host='0.0.0.0', port='80')

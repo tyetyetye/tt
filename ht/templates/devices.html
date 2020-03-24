@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+   <body>
+      <table border = 1>
+         <thead>
+            <td>Ether Address</td>
+            <td>Open Ports</td>
+            <td>Last Incident ID</td>
+            <td>Occurances</td>
+         </thead>
+{% for row in rows %}
+            <tr>
+               <td><a href="/devices/{{row[1]}}">{{row[1]}}</a></td>
+               <td>{{row[2]}}</td>
+               <td><a href="/reports/{{row[3]}}">{{row[3]}}</a></td>
+               <td>{{row[4]}}</td>	
+            </tr>
+{% endfor %}
+      </table>
+      <a href = "/reports">Return to reports</a>
+   </body>
+</html>

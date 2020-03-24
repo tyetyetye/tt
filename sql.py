@@ -10,7 +10,7 @@ import random
 from scapy.all import IP, TCP, sr1
 
 worker_sleep = 60
-sql_file = 'db/tt.db'
+sql_file = '/home/jtye/tt/db/tt.db'
 log_table = 'tt_log'
 swap_table = 'tt_swap'
 dev_table = 'tt_devicelist'
@@ -18,6 +18,7 @@ rep_table = 'tt_report'
 scan_ports = [135, 139, 445, 3389]
 filters = ['icmp-echo', 'tcp-syn', 'tcp-fin']
 scan_iface = 'eth1'
+white_mac = 'd09466bc311e'
 
 # Wrapper function for sql queries
 def sql(sql_q, params = None, commit = False, select = False):
@@ -109,7 +110,7 @@ def insert_header(header):
     read_filter(ether, incident, action = act)
     # Start worker to analyze swap data
     if act == 'add':
-        print(" ** Worker thread for ether %s (incident id: %s) sleeping for %s seconds." % (ether, incident, worker_sleep))
+        #print(" ** Worker thread for ether %s (incident id: %s) sleeping for %s seconds." % (ether, incident, worker_sleep))
         t = threading.Timer(worker_sleep, worker, [ether, incident])
         t.start()
 
@@ -124,14 +125,14 @@ def worker(ether, incident):
         ip = select[0][4]
         sql_q = "DELETE FROM " + swap_table + " WHERE id = " + id
         sql(sql_q, commit = True)
-        print("Creating report for %s (incident %s), filter %s" % (ether, inc, filt))
+        #print("Creating report for %s (incident %s), filter %s" % (ether, inc, filt))
         sql_q = "INSERT INTO " + rep_table + "(datetime, filter, ether_src, ip_src, n_packets, incident_id) VALUES(?,?,?,?,?,?)"
         param = (datetime.datetime.now(), filt, ether, ip, n_pack, inc)
         sql(sql_q, params = param, commit = True)
-        print("*** Device Table ***")
-        print(get_table(dev_table))
-        print("*** Report Table ***")
-        print(get_table(rep_table))
+        #print("*** Device Table ***")
+        #print(get_table(dev_table))
+        #print("*** Report Table ***")
+        #print(get_table(rep_table))
 
 def tcp_scan(ether):
     port = []
@@ -182,7 +183,7 @@ def new_device_chk(ether, incident):
     sql_q = "SELECT ether_src, incident_id FROM " + dev_table + " WHERE ether_src = '" + ether  + "'"
     dev = sql(sql_q, select = True)
     if not dev:
-        print(" * Device %s has never been seen before.  Adding to device list." % ether)
+        #print(" * Device %s has never been seen before.  Adding to device list." % ether)
         n_seen = 1
         param = (ether, incident, n_seen)
         sql_q = "INSERT INTO " + dev_table + "(ether_src, incident_id, num_seen) VALUES(?,?,?)"
@@ -197,7 +198,7 @@ def new_device_chk(ether, incident):
         inc = dev[1]
         cnt = dev[2] + 1
         if incident != inc:
-            print(" * Device %s has been seen before on incident %s.  Updating seen count to %s." % (ether, inc, cnt))
+            #print(" * Device %s has been seen before on incident %s.  Updating seen count to %s." % (ether, inc, cnt))
             # If ether seen on previous incident, increment num_seen
             sql_q = "UPDATE " + dev_table + " SET num_seen = " + str(cnt) + ", incident_id = " + str(incident) + " WHERE id = " + str(id)
             sql(sql_q, commit = True)
