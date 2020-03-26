@@ -29,6 +29,16 @@ def devices():
         rows = cur.fetchall()
         return render_template("devices.html", rows = rows)
 
+@app.route('/devices/ip/<ip>')
+def ip_dev(ip):
+     with sqlite3.connect(sql_db) as con:
+         cur = con.cursor()
+         sql_q = "select * from tt_log where ip_src = '" + ip + "'"
+         cur.execute(sql_q)
+         rows = cur.fetchall()
+         return render_template("ip.html", rows = rows)
+
+
 @app.route('/devices/<dev>')
 def ether_dev(dev):
     with sqlite3.connect(sql_db) as con:
